@@ -30,20 +30,25 @@ class CPU:
         #R7 is reserved as the stack pointer (SP)
         # `PC`: Program Counter, address of the currently executing instruction
         self.pc = 0
-        # * `IR`: Instruction Register, contains a copy of the currently executing instruction
-        # * `MAR`: Memory Address Register, holds the memory address we're reading or writing
-        # * `MDR`: Memory Data Register, holds the value to write or the value just read
         # * `FL`: Flags, see below  
         self.fl = 0  
     # Inside the CPU, there are two internal registers used for memory operations: the Memory Address Register (MAR) and the Memory Data Register (MDR). The MAR contains the address that is being read or written to. The MDR contains the data that was read or the data to write. You don't need to add the MAR or MDR to your CPU class, but they would make handy parameter names for ram_read() and ram_write(), if you wanted.   
-    
+    # * `MAR`: Memory Address Register, holds the memory address we're reading or writing
+    # * `MDR`: Memory Data Register, holds the value to write or the value just read
+
+
     def ram_read(self, MAR): 
     # should accept the address to read and return the value stored there.
-        return self.ram[MAR]
+        if MAR < len(self.ram):
+            return self.ram[MAR]
+        else:
+            return None
+
 
     def ram_write(self, MAR, MDR): 
     # should accept a value to write, and the address to write it to. 
         self.ram[MAR] = MDR
+
 
     def load(self, program = None):
         """Load a program into memory."""
@@ -65,13 +70,18 @@ class CPU:
             print(f'{sys.argv[0]}: {sys.argv[1]} file was not found')
             sys.exit()
 
+
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
+
 
     def trace(self):
         """
@@ -90,29 +100,45 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
         print()
 
+
     def get_index(self, binary):
         binary_str = str(binary)
         binary_str.replace("0b", '')
         return int(binary_str, 2) 
 
+
     def ldi(self, reg_num, value):
         index = self.get_index(reg_num)
         self.reg[index] = value
+
 
     def prn(self, reg_num):
         index = self.get_index(reg_num)
         print(self.reg[index])
 
+
     def run(self):
         """Run the CPU."""
+        # * `IR`: Instruction Register, contains a copy of the currently executing instruction
+        ir = self.ram_read(self.pc)
         HLT = 0b00000001
         LDI = 0b10000010 
         PRN = 0b01000111
-        while self.ram[self.pc] != HLT:
-            if self.ram[self.pc] == LDI:
-                self.ldi(self.ram[self.pc+1], self.ram[self.pc+2])
+        MUL = 0b10100010
+        while ir != HLT:
+            ir = self.ram_read(self.pc)
+            # Using ram_read(), read the bytes at PC+1 and PC+2 from RAM into variables operand_a and operand_b in case the instruction needs them.
+            operand_a = self.ram_read(self.pc+1)
+            operand_b = self.ram_read(self.pc+2)
+            if ir == MUL:
+                #Run the ALU on both registers
+                self.alu('MUL', operand_a, operand_b)
                 self.pc += 2
-            elif self.ram[self.pc] == PRN:
-                self.prn(self.ram[self.pc+1])
+                #Run the counter up by 3
+            elif ir == LDI:
+                self.ldi(operand_a, operand_b)
+                self.pc += 2
+            elif ir == PRN:
+                self.prn(operand_a)
                 self.pc +=1
             self.pc += 1
