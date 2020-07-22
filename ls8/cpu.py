@@ -35,7 +35,7 @@ class CPU:
     # Inside the CPU, there are two internal registers used for memory operations: the Memory Address Register (MAR) and the Memory Data Register (MDR). The MAR contains the address that is being read or written to. The MDR contains the data that was read or the data to write. You don't need to add the MAR or MDR to your CPU class, but they would make handy parameter names for ram_read() and ram_write(), if you wanted.   
     # * `MAR`: Memory Address Register, holds the memory address we're reading or writing
     # * `MDR`: Memory Data Register, holds the value to write or the value just read
-
+        self.reg[7] = 0xf4
 
     def ram_read(self, MAR): 
     # should accept the address to read and return the value stored there.
@@ -101,20 +101,34 @@ class CPU:
         print()
 
 
-    def get_index(self, binary):
-        binary_str = str(binary)
-        binary_str.replace("0b", '')
-        return int(binary_str, 2) 
+    # def get_index(self, binary):
+    #     binary_str = str(binary)
+    #     binary_str.replace("0b", '')
+    #     return int(binary_str, 2) 
 
 
     def ldi(self, reg_num, value):
-        index = self.get_index(reg_num)
+        index = reg_num
         self.reg[index] = value
 
 
     def prn(self, reg_num):
-        index = self.get_index(reg_num)
+        index = reg_num
         print(self.reg[index])
+
+    def push(self, index):
+        self.reg[7] -= 1
+        value = self.reg[index]
+        ram_address = self.reg[7]
+        self.ram[ram_address] = value
+
+    def pop(self, index):
+        ram_address = self.reg[7]
+        value = self.ram[ram_address]
+        self.reg[index] = value
+        self.reg[7] += 1
+    
+
 
 
     def run(self):
@@ -125,6 +139,9 @@ class CPU:
         LDI = 0b10000010 
         PRN = 0b01000111
         MUL = 0b10100010
+        POP = 0b01000110
+        PUSH = 0b01000101
+
         while ir != HLT:
             ir = self.ram_read(self.pc)
             # Using ram_read(), read the bytes at PC+1 and PC+2 from RAM into variables operand_a and operand_b in case the instruction needs them.
@@ -141,4 +158,10 @@ class CPU:
             elif ir == PRN:
                 self.prn(operand_a)
                 self.pc +=1
+            elif ir == POP:
+                self.pop(operand_a)
+                self.pc +=1
+            elif ir == PUSH:
+                self.push(operand_a)
+                self.pc += 1
             self.pc += 1
