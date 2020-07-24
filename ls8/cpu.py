@@ -2,6 +2,55 @@
 import sys
 class CPU:
     """Main CPU class."""
+    ADD = 0b10100000
+    SUB = 0b10100001
+    MUL = 0b10100010
+    DIV = 0b10100011
+    MOD = 0b10100100
+
+    INC = 0b01100101
+    DEC = 0b01100110
+
+    CMP = 0b10100111
+
+    AND = 0b10101000
+    NOT = 0b01101001
+    OR = 0b10101010
+    XOR = 0b10101011
+    SHL = 0b10101100
+    SHR = 0b10101101
+
+    CALL = 0b01010000
+    RET = 0b00010001
+
+    INT = 0b01010010
+    IRET = 0b00010011
+
+    JMP = 0b01010100
+    JEQ = 0b01010101
+    JNE = 0b01010110
+    JGT = 0b01010111
+    JLT = 0b01011000
+    JLE = 0b01011001
+    JGE = 0b01011010
+
+    NOP = 0b00000000
+
+    HLT = 0b00000001
+
+    LDI = 0b10000010
+
+    LD = 0b10000011
+    ST = 0b10000100
+
+    PUSH = 0b01000101
+    POP = 0b01000110
+
+    PRN = 0b01000111
+    PRA = 0b01001000
+
+
+
     def __init__(self):
         """Construct a new CPU."""
         self.ram = [0] * 256 
@@ -37,6 +86,21 @@ class CPU:
     # * `MDR`: Memory Data Register, holds the value to write or the value just read
         self.reg[7] = 0xf4
         self.equal = 0
+        self.dispatch= {}
+        self.dispatch[self.ADD] = self.add
+        self.dispatch[self.MUL] = self.mul
+        self.dispatch[self.HLT] = self.hlt
+        self.dispatch[self.LDI] = self.ldi
+        self.dispatch[self.PUSH] = self.push
+        self.dispatch[self.POP] = self.pop
+        self.dispatch[self.CALL] = self.call
+        self.dispatch[self.RET] = self.ret
+        self.dispatch[self.CMP] = self.cmp  
+        self.dispatch[self.JMP] = self.jmp  
+        self.dispatch[self.JEQ] = self.jeq  
+        self.dispatch[self.JNE] = self.jne
+        self.dispatch[self.PRN] = self.prn
+
 
     def ram_read(self, MAR): 
     # should accept the address to read and return the value stored there.
@@ -101,40 +165,172 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
         print()
 
+    def hlt(self):
+        exit()
 
 
-    def ldi(self, reg_num, value):
-        index = reg_num
-        self.reg[index] = value
+#     ### LDI
+
+# `LDI register immediate`
+
+# Set the value of a register to an integer.
+
+# Machine code:
+# ```
+# 10000010 00000rrr iiiiiiii
+# 82 0r ii
+# ```
 
 
-    def prn(self, reg_num):
-        index = reg_num
-        print(self.reg[index])
+    def ldi(self):
+        target_register = self.ram_read(self.pc + 1)
+        value = self.ram_read(self.pc + 2)
+        self.reg[target_register] = value
+        self.pc = self.pc + 3
 
-    def push(self, index):
-        self.reg[7] -= 1
-        value = self.reg[index]
-        ram_address = self.reg[7]
-        self.ram[ram_address] = value
+#         ### PRN
 
-    def pop(self, index):
-        ram_address = self.reg[7]
-        value = self.ram[ram_address]
-        self.reg[index] = value
-        self.reg[7] += 1
+# `PRN register` pseudo-instruction
+
+# Print numeric value stored in the given register.
+
+# Print to the console the decimal integer value that is stored in the given
+# register.
+
+# Machine code:
+# ```
+# 01000111 00000rrr
+# 47 0r
+# ```
 
 
-    def call(self, reg_num):
-        address = self.reg[reg_num]
-        self.reg[7] -= 1
-        self.ram[self.reg[7]] = self.pc + 2
-        self.pc = address
+    def prn(self):
+        print(self.reg[self.ram_read(self.pc + 1)])
+        self.pc = self.pc + 2
 
-    def return_from_call(self):
-        value = self.ram[self.reg[7]]
-        self.pc = value
-        self.reg[7] += 1
+
+#         ### ADD
+
+# *This is an instruction handled by the ALU.*
+
+# `ADD registerA registerB`
+
+# Add the value in two registers and store the result in registerA.
+
+# Machine code:
+# ```
+# 10100000 00000aaa 00000bbb
+# A0 0a 0b
+# ```
+
+    def add(self):
+        self.alu('ADD', self.ram_read(self.pc + 1), self.ram_read(self.pc + 2))
+        self.pc = self.pc + 3
+
+# ### MUL
+
+# *This is an instruction handled by the ALU.*
+
+# `MUL registerA registerB`
+
+# Multiply the values in two registers together and store the result in registerA.
+
+# Machine code:
+# ```
+# 10100010 00000aaa 00000bbb
+# A2 0a 0b
+# ```
+
+
+    def mul(self):
+        self.alu('MUL', self.ram_read(self.pc + 1), self.ram_read(self.pc + 2))
+        self.pc = self.pc + 3
+
+
+#         ### PUSH
+
+# `PUSH register`
+
+# Push the value in the given register on the stack.
+
+# 1. Decrement the `SP`.
+# 2. Copy the value in the given register to the address pointed to by
+#    `SP`.
+
+# Machine code:
+# ```
+# 01000101 00000rrr
+# 45 0r
+# ```
+
+    def push(self):
+        self.reg[7] = self.reg[7] - 1
+        self.ram_write(self.reg[7], self.reg[self.ram_read(self.pc + 1)])
+        self.pc = self.pc + 2
+
+
+#         ### POP
+
+# `POP register`
+
+# Pop the value at the top of the stack into the given register.
+
+# 1. Copy the value from the address pointed to by `SP` to the given register.
+# 2. Increment `SP`.
+
+# Machine code:
+# ```
+# 01000110 00000rrr
+# 46 0r
+# ```
+
+
+    def pop(self):
+        self.reg[self.ram_read(self.pc + 1)] = self.ram_read(self.reg[7])
+        self.reg[7] = self.reg[7] + 1
+        self.pc = self.pc + 2
+
+
+#         ### CALL register
+
+# `CALL register`
+
+# Calls a subroutine (function) at the address stored in the register.
+
+# 1. The address of the ***instruction*** _directly after_ `CALL` is
+#    pushed onto the stack. This allows us to return to where we left off when the subroutine finishes executing.
+# 2. The PC is set to the address stored in the given register. We jump to that location in RAM and execute the first instruction in the subroutine. The PC can move forward or backwards from its current location.
+
+# Machine code:
+# ```
+# 01010000 00000rrr
+# 50 0r
+# ```
+
+
+    def call(self):
+        self.reg[7] = self.reg[7] - 1
+        self.ram_write(self.reg[7], self.pc + 2)
+        self.pc = self.reg[self.ram_read(self.pc + 1)]
+
+
+#         ### RET
+
+# `RET`
+
+# Return from subroutine.
+
+# Pop the value from the top of the stack and store it in the `PC`.
+
+# Machine Code:
+# ```
+# 00010001
+# 11
+# ```
+
+    def ret(self):
+        self.pc = self.ram_read(self.reg[7])
+        self.reg[7] = self.reg[7] + 1
 
 
 
@@ -179,6 +375,10 @@ class CPU:
     # ```
     # 01010100 00000rrr
     # 54 0r
+    
+    def jmp(self):
+        self.pc = self.reg[self.ram_read(self.pc + 1)]
+    
 
 
 
@@ -194,6 +394,12 @@ class CPU:
     # 01010101 00000rrr
     # 55 0r
 
+    def jeq(self):
+        if self.equal == 1:
+            self.pc = self.reg[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+    
 
 
 
@@ -212,55 +418,31 @@ class CPU:
     # ```
 
 
+    def jne(self):
+        if self.equal == 0:
+            self.pc = self.reg[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+        
+
+
 
 
     def run(self):
         """Run the CPU."""
-        # * `IR`: Instruction Register, contains a copy of the currently executing instruction
-        ir = self.ram_read(self.pc)
-        HLT = 0b00000001
-        LDI = 0b10000010 
-        PRN = 0b01000111
-        MUL = 0b10100010
-        POP = 0b01000110
-        PUSH = 0b01000101
-        CALL = 0b01010000
-        RET = 0b10001
-        ADD = 0b10100000
-        CMP = 0b10100111
-        JNE = 0b01010110
-        JEQ = 0b01010101
-        JMP = 0b01010100
 
+        running = True
 
-        while ir != HLT:
+        while running:
             ir = self.ram_read(self.pc)
-            # Using ram_read(), read the bytes at PC+1 and PC+2 from RAM into variables operand_a and operand_b in case the instruction needs them.
-            operand_a = self.ram_read(self.pc+1)
-            operand_b = self.ram_read(self.pc+2)
-            if ir == MUL:
-                #Run the ALU on both registers
-                self.alu('MUL', operand_a, operand_b)
-                self.pc += 3
-                #Run the counter up by 3
-            elif ir == LDI:
-                self.ldi(operand_a, operand_b)
-                self.pc += 3
-            elif ir == ADD:
-                self.alu('ADD', operand_a, operand_b)
-                self.pc += 3
-            elif ir == PRN:
-                self.prn(operand_a)
-                self.pc += 2
-            elif ir == POP:
-                self.pop(operand_a)
-                self.pc += 2
-            elif ir == PUSH:
-                self.push(operand_a)
-                self.pc += 2
-            elif ir == CALL:
-                self.call(operand_a)
-            elif ir == RET:
-                self.return_from_call()
-            elif ir == CMP:
-                self.cmp()
+            old_counter = self.pc
+
+            if ir not in self.dispatch:
+                print('Bad instruction')
+                self.trace()
+                self.hlt()
+
+            self.dispatch[ir]()
+
+            if self.pc == old_counter:
+                self.pc = self.pc + 1
