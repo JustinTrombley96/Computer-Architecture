@@ -101,11 +101,6 @@ class CPU:
         print()
 
 
-    # def get_index(self, binary):
-    #     binary_str = str(binary)
-    #     binary_str.replace("0b", '')
-    #     return int(binary_str, 2) 
-
 
     def ldi(self, reg_num, value):
         index = reg_num
@@ -129,6 +124,50 @@ class CPU:
         self.reg[7] += 1
     
 
+    # CALL register
+
+    # `CALL register`
+
+    # Calls a subroutine (function) at the address stored in the register.
+
+    # 1. The address of the ***instruction*** _directly after_ `CALL` is
+    #    pushed onto the stack. This allows us to return to where we left off when the subroutine finishes executing.
+    # 2. The PC is set to the address stored in the given register. We jump to that location in RAM and execute the 
+    # first instruction in the subroutine. The PC can move forward or backwards from its current location.
+
+    # Machine code:
+    # ```
+    # 01010000 00000rrr
+    # 50 0r
+
+    def call(self, reg_num):
+        address = self.reg[reg_num]
+        self.reg[7] -= 1
+        self.ram[self.reg[7]] = self.pc + 2
+        self.pc = address
+
+
+
+    # RET
+
+    # `RET`
+
+    # Return from subroutine.
+
+    # Pop the value from the top of the stack and store it in the `PC`.
+
+    # Machine Code:
+    # ```
+    # 00010001
+    # 11
+    # ```
+
+    def return_from_call(self):
+        value = self.ram[self.reg[7]]
+        self.pc = value
+        self.reg[7] += 1
+
+
 
 
     def run(self):
@@ -141,6 +180,9 @@ class CPU:
         MUL = 0b10100010
         POP = 0b01000110
         PUSH = 0b01000101
+        CALL = 0b01010000
+        RET = 0b10001
+        ADD = 0b10100000
 
         while ir != HLT:
             ir = self.ram_read(self.pc)
@@ -150,18 +192,24 @@ class CPU:
             if ir == MUL:
                 #Run the ALU on both registers
                 self.alu('MUL', operand_a, operand_b)
-                self.pc += 2
+                self.pc += 3
                 #Run the counter up by 3
             elif ir == LDI:
                 self.ldi(operand_a, operand_b)
-                self.pc += 2
+                self.pc += 3
+            elif ir == ADD:
+                self.alu('ADD', operand_a, operand_b)
+                self.pc += 3
             elif ir == PRN:
                 self.prn(operand_a)
-                self.pc +=1
+                self.pc += 2
             elif ir == POP:
                 self.pop(operand_a)
-                self.pc +=1
+                self.pc += 2
             elif ir == PUSH:
                 self.push(operand_a)
-                self.pc += 1
-            self.pc += 1
+                self.pc += 2
+            elif ir == CALL:
+                self.call(operand_a)
+            elif ir == RET:
+                self.return_from_call()
