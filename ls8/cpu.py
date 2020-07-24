@@ -314,6 +314,7 @@ class CPU:
         self.pc = self.reg[self.ram_read(self.pc + 1)]
 
 
+
 #         ### RET
 
 # `RET`
@@ -331,6 +332,28 @@ class CPU:
     def ret(self):
         self.pc = self.ram_read(self.reg[7])
         self.reg[7] = self.reg[7] + 1
+
+
+
+#-------------------------------------------Sprint Below--------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -363,6 +386,45 @@ class CPU:
         self.pc += 3
 
 
+    ### JNE
+
+    # `JNE register`
+
+    # If `E` flag is clear (false, 0), jump to the address stored in the given
+    # register.
+
+    # Machine code:
+    # ```
+    # 01010110 00000rrr
+    # 56 0r
+    # ```
+
+
+    def jne(self):
+        if self.equal == 0:
+            self.pc = self.reg[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+
+    
+    #  JEQ
+
+    # `JEQ register`
+
+    # If `equal` flag is set (true), jump to the address stored in the given register.
+
+    # Machine code:
+    # ```
+    # 01010101 00000rrr
+    # 55 0r
+
+    def jeq(self):
+        if self.equal == 1:
+            self.pc = self.reg[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+
+
     # JMP
 
     # `JMP register`
@@ -383,46 +445,12 @@ class CPU:
 
 
 
-    #  JEQ
-
-    # `JEQ register`
-
-    # If `equal` flag is set (true), jump to the address stored in the given register.
-
-    # Machine code:
-    # ```
-    # 01010101 00000rrr
-    # 55 0r
-
-    def jeq(self):
-        if self.equal == 1:
-            self.pc = self.reg[self.ram_read(self.pc + 1)]
-        else:
-            self.pc += 2
     
 
 
 
 
-    ### JNE
 
-    # `JNE register`
-
-    # If `E` flag is clear (false, 0), jump to the address stored in the given
-    # register.
-
-    # Machine code:
-    # ```
-    # 01010110 00000rrr
-    # 56 0r
-    # ```
-
-
-    def jne(self):
-        if self.equal == 0:
-            self.pc = self.reg[self.ram_read(self.pc + 1)]
-        else:
-            self.pc += 2
         
 
 
