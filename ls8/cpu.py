@@ -36,6 +36,7 @@ class CPU:
     # * `MAR`: Memory Address Register, holds the memory address we're reading or writing
     # * `MDR`: Memory Data Register, holds the value to write or the value just read
         self.reg[7] = 0xf4
+        self.equal = 0
 
     def ram_read(self, MAR): 
     # should accept the address to read and return the value stored there.
@@ -122,23 +123,7 @@ class CPU:
         value = self.ram[ram_address]
         self.reg[index] = value
         self.reg[7] += 1
-    
 
-    # CALL register
-
-    # `CALL register`
-
-    # Calls a subroutine (function) at the address stored in the register.
-
-    # 1. The address of the ***instruction*** _directly after_ `CALL` is
-    #    pushed onto the stack. This allows us to return to where we left off when the subroutine finishes executing.
-    # 2. The PC is set to the address stored in the given register. We jump to that location in RAM and execute the 
-    # first instruction in the subroutine. The PC can move forward or backwards from its current location.
-
-    # Machine code:
-    # ```
-    # 01010000 00000rrr
-    # 50 0r
 
     def call(self, reg_num):
         address = self.reg[reg_num]
@@ -146,26 +131,85 @@ class CPU:
         self.ram[self.reg[7]] = self.pc + 2
         self.pc = address
 
-
-
-    # RET
-
-    # `RET`
-
-    # Return from subroutine.
-
-    # Pop the value from the top of the stack and store it in the `PC`.
-
-    # Machine Code:
-    # ```
-    # 00010001
-    # 11
-    # ```
-
     def return_from_call(self):
         value = self.ram[self.reg[7]]
         self.pc = value
         self.reg[7] += 1
+
+
+
+    # ### CMP
+
+    # *This is an instruction handled by the ALU.*
+
+    # `CMP registerA registerB`
+
+    # Compare the values in two registers.
+
+    # * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+
+    # * If registerA is less than registerB, set the Less-than `L` flag to 1,
+    #   otherwise set it to 0.
+
+    # * If registerA is greater than registerB, set the Greater-than `G` flag
+    #   to 1, otherwise set it to 0.
+
+    # Machine code:
+    # ```
+    # 10100111 00000aaa 00000bbb
+    # A7 0a 0b
+
+    def cmp(self):
+        if self.reg[self.ram_read(self.pc + 1)] == self.reg[self.ram_read(self.pc + 2)]:
+            self.equal = 1
+        else:
+            self.equal = 0
+        self.pc += 3
+
+
+    # JMP
+
+    # `JMP register`
+
+    # Jump to the address stored in the given register.
+
+    # Set the `PC` to the address stored in the given register.
+
+    # Machine code:
+    # ```
+    # 01010100 00000rrr
+    # 54 0r
+
+
+
+
+    #  JEQ
+
+    # `JEQ register`
+
+    # If `equal` flag is set (true), jump to the address stored in the given register.
+
+    # Machine code:
+    # ```
+    # 01010101 00000rrr
+    # 55 0r
+
+
+
+
+
+    ### JNE
+
+    # `JNE register`
+
+    # If `E` flag is clear (false, 0), jump to the address stored in the given
+    # register.
+
+    # Machine code:
+    # ```
+    # 01010110 00000rrr
+    # 56 0r
+    # ```
 
 
 
@@ -183,6 +227,11 @@ class CPU:
         CALL = 0b01010000
         RET = 0b10001
         ADD = 0b10100000
+        CMP = 0b10100111
+        JNE = 0b01010110
+        JEQ = 0b01010101
+        JMP = 0b01010100
+
 
         while ir != HLT:
             ir = self.ram_read(self.pc)
@@ -213,3 +262,5 @@ class CPU:
                 self.call(operand_a)
             elif ir == RET:
                 self.return_from_call()
+            elif ir == CMP:
+                self.cmp()
